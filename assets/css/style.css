@@ -4,11 +4,17 @@
     box-sizing: border-box;
 }
 
+html {
+    scrollbar-gutter: stable;
+}
+
 body {
     font-family: Arial, sans-serif;
     background: #f8f4f8;
-    /* background: yellow !important; */
     color: #333;
+    overflow-x: hidden;
+    width: 100vw;
+    padding-top: 90px;
 }
 
 a {
@@ -22,6 +28,12 @@ a {
     align-items: center;
     padding: 20px 60px;
     border-bottom: 1px solid #e4d6e2;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    box-sizing: border-box;
 }
 
 .logo {

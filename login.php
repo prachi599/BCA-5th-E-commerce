@@ -1,5 +1,18 @@
 <?php
-session_start();
+// Start session with secure settings
+session_set_cookie_params([
+    'lifetime' => 7 * 24 * 60 * 60,
+    'path' => '/',
+    'domain' => '',
+    'secure' => false,
+    'httponly' => true,
+    'samesite' => 'Strict'
+]);
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 include 'config/db.php';
 
 $message = "";
@@ -13,6 +26,7 @@ if (isset($_SESSION['user_id'])) {
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $email = trim($_POST['email']);
     $password = $_POST['password'];
+    $remember = isset($_POST['remember']) ? true : false;
 
     $email = mysqli_real_escape_string($conn, $email);
 
@@ -27,8 +41,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         if (password_verify($password, $user['password'])) {
            $_SESSION['user_id'] = $user['id'];
-$_SESSION['user_name'] = $user['name'];
-$_SESSION['user_role'] = $user['role'];
+           $_SESSION['user_name'] = $user['name'];
+           $_SESSION['user_role'] = isset($user['role']) ? $user['role'] : 'customer';
+            
+            // Set remember me cookie if checkbox is checked
+            if ($remember) {
+                $token = bin2hex(random_bytes(32));
+                $expiry = date('Y-m-d H:i:s', strtotime('+30 days'));
+                mysqli_query($conn, "UPDATE users SET remember_token = '$token', token_expiry = '$expiry' WHERE id = " . $user['id']);
+                setcookie('remember_token', $token, time() + (30 * 24 * 60 * 60), '/', '', false, true);
+            }
+            
             header("Location: shop.php");
             exit();
         } else {
@@ -118,6 +141,25 @@ $_SESSION['user_role'] = $user['role'];
     .register-text a:hover {
         text-decoration: underline;
     }
+
+    .remember-checkbox {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+        font-size: 15px;
+    }
+
+    .remember-checkbox input {
+        width: auto;
+        margin-right: 8px;
+        margin-bottom: 0;
+        cursor: pointer;
+    }
+
+    .remember-checkbox label {
+        cursor: pointer;
+        color: #555;
+    }
 </style>
 
 <section class="login-section">
@@ -127,6 +169,12 @@ $_SESSION['user_role'] = $user['role'];
         <form method="POST">
             <input type="email" name="email" placeholder="Enter Email" required>
             <input type="password" name="password" placeholder="Enter Password" required>
+            
+            <div class="remember-checkbox">
+                <input type="checkbox" name="remember" id="remember">
+                <label for="remember">Remember me for 30 days</label>
+            </div>
+            
             <button type="submit">Login</button>
         </form>
 

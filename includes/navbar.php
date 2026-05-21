@@ -1,6 +1,18 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+// Set base path
+$base_path = dirname(dirname(__FILE__));
+
+if (!isset($conn)) {
+    include $base_path . '/config/db.php';
+}
+
+// Check if user is logged in (restores from cookie if needed)
+$isLoggedIn = isset($_SESSION['user_id']) && !empty($_SESSION['user_id']) ? true : false;
+
+// If not logged in, check remember token
+if (!$isLoggedIn && isset($_COOKIE['remember_token']) && !empty($_COOKIE['remember_token'])) {
+    include_once $base_path . '/config/session.php';
+    $isLoggedIn = checkUserLogin();
 }
 ?>
 
@@ -11,7 +23,7 @@ if (session_status() === PHP_SESSION_NONE) {
         <li><a href="/gifthub/shop.php">Shop</a></li>
         <li><a href="/gifthub/cart.php">Cart</a></li>
 
-        <?php if (isset($_SESSION['user_id'])): ?>
+        <?php if ($isLoggedIn && isset($_SESSION['user_id'])): ?>
             <li><a href="/gifthub/orders.php">Orders</a></li>
 
             <?php if (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin'): ?>
