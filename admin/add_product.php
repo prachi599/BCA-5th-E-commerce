@@ -1,5 +1,9 @@
 <?php
-session_start();
+// Start session with secure settings
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -16,6 +20,9 @@ if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
     header("Location: ../shop.php");
     exit();
 }
+
+// Set admin session cookie
+setcookie('admin_session', bin2hex(random_bytes(16)), time() + 3600, '/', '', false, true);
 
 $message = "";
 $message_type = "";

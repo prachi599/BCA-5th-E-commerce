@@ -1,61 +1,93 @@
 <?php
-session_start();
-include 'includes/header.php';
-include 'includes/navbar.php';
+include 'config/session.php';
+include 'config/db.php';
+
+if (!isset($_GET['order_id'])) {
+    header("Location: shop.php");
+    exit();
+}
+
+$order_id = (int) $_GET['order_id'];
+
+$query = mysqli_query($conn, "SELECT * FROM orders WHERE id = $order_id");
+
+if (!$query || mysqli_num_rows($query) == 0) {
+    header("Location: shop.php");
+    exit();
+}
+
+$order = mysqli_fetch_assoc($query);
 ?>
 
+<?php include 'includes/header.php'; ?>
+<?php include 'includes/navbar.php'; ?>
+
 <style>
-    .success-section {
-        min-height: 80vh;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        background: #fffaf9;
-        padding: 40px 20px;
-    }
+.success-box{
+    max-width:600px;
+    margin:60px auto;
+    background:#fff;
+    padding:40px;
+    border-radius:18px;
+    text-align:center;
+    box-shadow:0 4px 18px rgba(0,0,0,0.08);
+}
 
-    .success-box {
-        background: #fff;
-        padding: 40px;
-        border-radius: 22px;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-        text-align: center;
-        max-width: 600px;
-        width: 100%;
-    }
+.success-box h2{
+    color:#4CAF50;
+    margin-bottom:20px;
+    font-size:34px;
+}
 
-    .success-box h1 {
-        color: #6f4b8b;
-        margin-bottom: 15px;
-    }
+.success-box p{
+    font-size:18px;
+    margin:10px 0;
+    color:#555;
+}
 
-    .success-box p {
-        font-size: 18px;
-        color: #555;
-        margin-bottom: 25px;
-    }
-
-    .success-btn {
-        display: inline-block;
-        padding: 14px 24px;
-        background: #e58cab;
-        color: white;
-        text-decoration: none;
-        border-radius: 14px;
-        font-weight: bold;
-    }
-
-    .success-btn:hover {
-        background: #d9789b;
-    }
+.success-box a{
+    display:inline-block;
+    margin-top:25px;
+    padding:12px 24px;
+    background:#e58cab;
+    color:white;
+    text-decoration:none;
+    border-radius:10px;
+    font-weight:bold;
+}
 </style>
 
-<section class="success-section">
+<section class="section">
+
     <div class="success-box">
-        <h1>Order Placed Successfully!</h1>
-        <p>Thank you for shopping with GiftHub.</p>
-        <a href="shop.php" class="success-btn">Continue Shopping</a>
+
+        <h2>Order Successful 🎉</h2>
+
+        <p>Thank you for your order.</p>
+
+        <p>
+            Your Order ID:
+            <strong>#<?php echo $order['id']; ?></strong>
+        </p>
+
+        <p>
+            Total Amount:
+            <strong>
+                Rs <?php echo number_format($order['total_amount'],2); ?>
+            </strong>
+        </p>
+
+        <p>
+            Status:
+            <strong><?php echo $order['status']; ?></strong>
+        </p>
+
+        <a href="shop.php">
+            Continue Shopping
+        </a>
+
     </div>
+
 </section>
 
 <?php include 'includes/footer.php'; ?>

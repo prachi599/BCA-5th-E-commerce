@@ -1,5 +1,18 @@
 <?php
-session_start();
+// Start session with secure settings
+session_set_cookie_params([
+    'lifetime' => 7 * 24 * 60 * 60,  // 7 days
+    'path' => '/',
+    'domain' => '',
+    'secure' => false,  // Set to true if using HTTPS
+    'httponly' => true,  // Prevent JavaScript access
+    'samesite' => 'Strict'  // CSRF protection
+]);
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 include 'config/db.php';
 
 $message = "";
@@ -11,21 +24,40 @@ if (isset($_SESSION['user_id'])) {
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $name = mysqli_real_escape_string($conn, trim($_POST['name']));
-    $email = mysqli_real_escape_string($conn, trim($_POST['email']));
-    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    $name = trim($_POST['name'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+    $confirm_password = $_POST['confirm_password'] ?? '';
 
-    $check = mysqli_query($conn, "SELECT * FROM users WHERE LOWER(email) = LOWER('$email')");
-
-    if ($check && mysqli_num_rows($check) > 0) {
-        $message = "Email already exists!";
+    // Validation
+    if (empty($name) || empty($email) || empty($password)) {
+        $message = "All fields are required!";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $message = "Please enter a valid email address!";
+    } elseif (strlen($password) < 6) {
+        $message = "Password must be at least 6 characters!";
+    } elseif ($password !== $confirm_password) {
+        $message = "Passwords do not match!";
     } else {
-        $insert = mysqli_query($conn, "INSERT INTO users (name, email, password) VALUES ('$name', '$email', '$password')");
+        // Check if email already exists using prepared statement
+        $check_stmt = mysqli_prepare($conn, "SELECT id FROM users WHERE LOWER(email) = LOWER(?)");
+        mysqli_stmt_bind_param($check_stmt, "s", $email);
+        mysqli_stmt_execute($check_stmt);
+        $check_result = mysqli_stmt_get_result($check_stmt);
 
-        if ($insert) {
-            $message = "Registration successful. <a href='login.php'>Login now</a>";
+        if (mysqli_num_rows($check_result) > 0) {
+            $message = "Email already registered! <a href='login.php'>Login here</a>";
         } else {
-            $message = "Registration failed.";
+            // Insert new user with prepared statement
+            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+            $insert_stmt = mysqli_prepare($conn, "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'customer')");
+            mysqli_stmt_bind_param($insert_stmt, "sss", $name, $email, $hashed_password);
+
+            if (mysqli_stmt_execute($insert_stmt)) {
+                $message = "✓ Registration successful! <a href='login.php'>Click here to login</a>";
+            } else {
+                $message = "Registration failed. Please try again.";
+            }
         }
     }
 }

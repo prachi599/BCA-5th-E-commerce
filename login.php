@@ -17,48 +17,104 @@ include 'config/db.php';
 
 $message = "";
 
-// If already logged in, send to shop
+// If already logged in
 if (isset($_SESSION['user_id'])) {
     header("Location: shop.php");
     exit();
 }
 
+// Login validation
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+
+    // Get form data
     $email = trim($_POST['email']);
-    $password = $_POST['password'];
-    $remember = isset($_POST['remember']) ? true : false;
+    $password = trim($_POST['password']);
+    $remember = isset($_POST['remember']);
 
-    $email = mysqli_real_escape_string($conn, $email);
+    // Validation
+    if (empty($email) || empty($password)) {
 
-    $query = mysqli_query($conn, "SELECT * FROM users WHERE LOWER(email) = LOWER('$email') LIMIT 1");
+        $message = "All fields are required!";
 
-    if (!$query) {
-        die("Query failed: " . mysqli_error($conn));
-    }
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 
-    if (mysqli_num_rows($query) > 0) {
-        $user = mysqli_fetch_assoc($query);
+        $message = "Enter a valid email address!";
 
-        if (password_verify($password, $user['password'])) {
-           $_SESSION['user_id'] = $user['id'];
-           $_SESSION['user_name'] = $user['name'];
-           $_SESSION['user_role'] = isset($user['role']) ? $user['role'] : 'customer';
-            
-            // Set remember me cookie if checkbox is checked
-            if ($remember) {
-                $token = bin2hex(random_bytes(32));
-                $expiry = date('Y-m-d H:i:s', strtotime('+30 days'));
-                mysqli_query($conn, "UPDATE users SET remember_token = '$token', token_expiry = '$expiry' WHERE id = " . $user['id']);
-                setcookie('remember_token', $token, time() + (30 * 24 * 60 * 60), '/', '', false, true);
-            }
-            
-            header("Location: shop.php");
-            exit();
-        } else {
-            $message = "Wrong password!";
-        }
+    } elseif (strlen($password) < 6) {
+
+        $message = "Password must be at least 6 characters!";
+
     } else {
-        $message = "User not found!";
+
+        // Secure prepared statement
+        $stmt = mysqli_prepare(
+            $conn,
+            "SELECT * FROM users WHERE LOWER(email)=LOWER(?) LIMIT 1"
+        );
+
+        mysqli_stmt_bind_param($stmt, "s", $email);
+        mysqli_stmt_execute($stmt);
+
+        $result = mysqli_stmt_get_result($stmt);
+
+        if ($result && mysqli_num_rows($result) > 0) {
+
+            $user = mysqli_fetch_assoc($result);
+
+            // Verify password
+            if (password_verify($password, $user['password'])) {
+
+                // Create session
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['user_name'] = $user['name'];
+                $_SESSION['user_role'] = $user['role'] ?? 'customer';
+
+                // Remember me
+                if ($remember) {
+
+                    $token = bin2hex(random_bytes(32));
+                    $expiry = date('Y-m-d H:i:s', strtotime('+30 days'));
+
+                    $update = mysqli_prepare(
+                        $conn,
+                        "UPDATE users 
+                         SET remember_token=?, token_expiry=? 
+                         WHERE id=?"
+                    );
+
+                    mysqli_stmt_bind_param(
+                        $update,
+                        "ssi",
+                        $token,
+                        $expiry,
+                        $user['id']
+                    );
+
+                    mysqli_stmt_execute($update);
+
+                    setcookie(
+                        'remember_token',
+                        $token,
+                        time() + (30 * 24 * 60 * 60),
+                        '/',
+                        '',
+                        false,
+                        true
+                    );
+                }
+
+                header("Location: shop.php");
+                exit();
+
+            } else {
+
+                $message = "Incorrect password!";
+            }
+
+        } else {
+
+            $message = "User not found!";
+        }
     }
 }
 ?>
@@ -102,6 +158,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         box-sizing: border-box;
     }
 
+    .login-box input:focus {
+        outline: none;
+        border-color: #e58cab;
+        box-shadow: 0 0 5px rgba(229, 140, 171, 0.4);
+    }
+
     .login-box button {
         width: 100%;
         padding: 14px;
@@ -122,7 +184,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     .login-message {
         text-align: center;
         margin-top: 15px;
-        color: red;
+        color: #e63946;
+        background: #ffe5e5;
+        padding: 10px;
+        border-radius: 8px;
         font-size: 15px;
     }
 
@@ -163,29 +228,52 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 </style>
 
 <section class="login-section">
+
     <div class="login-box">
+
         <h2>Login</h2>
 
         <form method="POST">
-            <input type="email" name="email" placeholder="Enter Email" required>
-            <input type="password" name="password" placeholder="Enter Password" required>
-            
+
+            <input 
+                type="email" 
+                name="email" 
+                placeholder="Enter Email"
+                required
+                autocomplete="email"
+            >
+
+            <input 
+                type="password" 
+                name="password" 
+                placeholder="Enter Password"
+                minlength="6"
+                required
+                autocomplete="current-password"
+            >
+
             <div class="remember-checkbox">
                 <input type="checkbox" name="remember" id="remember">
                 <label for="remember">Remember me for 30 days</label>
             </div>
-            
+
             <button type="submit">Login</button>
+
         </form>
 
         <?php if (!empty($message)) : ?>
-            <p class="login-message"><?php echo htmlspecialchars($message); ?></p>
+            <p class="login-message">
+                <?php echo htmlspecialchars($message); ?>
+            </p>
         <?php endif; ?>
 
         <p class="register-text">
-            Don’t have an account? <a href="register.php">Register</a>
+            Don’t have an account?
+            <a href="register.php">Register</a>
         </p>
+
     </div>
+
 </section>
 
 <?php include 'includes/footer.php'; ?>

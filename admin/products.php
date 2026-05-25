@@ -1,5 +1,9 @@
 <?php
-session_start();
+// Start session with secure settings
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once __DIR__ . '/../helpers/functions.php';
 include '../config/db.php';
 
@@ -13,6 +17,9 @@ if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
     header("Location: ../shop.php");
     exit();
 }
+
+// Set admin session cookie
+setcookie('admin_session', bin2hex(random_bytes(16)), time() + 3600, '/', '', false, true);
 
 $result = mysqli_query($conn, "SELECT * FROM products ORDER BY id DESC");
 
